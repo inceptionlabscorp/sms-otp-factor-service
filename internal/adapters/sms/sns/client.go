@@ -2,20 +2,18 @@ package sns
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/inceptionlabscorp/sms-otp-factor-service/internal/adapters/awsutil"
 )
 
 const (
 	serviceName = "sns"
-	aws4Request = "aws4_request"
 )
 
 type Client struct {
@@ -32,9 +30,13 @@ type Client struct {
 
 func (c Client) SendSMS(ctx context.Context, to string, body string) error {
 	if strings.TrimSpace(c.Region) == "" ||
-		strings.TrimSpace(c.AccessKeyID) == "" ||
-		strings.TrimSpace(c.SecretAccessKey) == "" {
+		(strings.TrimSpace(c.AccessKeyID) == "" && strings.TrimSpace(c.SecretAccessKey) != "") ||
+		(strings.TrimSpace(c.AccessKeyID) != "" && strings.TrimSpace(c.SecretAccessKey) == "") {
 		return fmt.Errorf("amazon sns sms client is not configured")
+	}
+	credentials, err := c.credentials(ctx)
+	if err != nil {
+		return err
 	}
 	endpoint := c.endpoint()
 	form := url.Values{}
@@ -62,9 +64,7 @@ func (c Client) SendSMS(ctx context.Context, to string, body string) error {
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "text/xml, application/xml")
-	if err := c.sign(req, payload); err != nil {
-		return err
-	}
+	awsutil.Sign(req, payload, serviceName, strings.TrimSpace(c.Region), credentials, c.now())
 	res, err := c.client().Do(req)
 	if err != nil {
 		return err
@@ -85,76 +85,20 @@ func (c Client) endpoint() string {
 	return fmt.Sprintf("https://sns.%s.amazonaws.com/", strings.TrimSpace(c.Region))
 }
 
-func (c Client) sign(req *http.Request, payload string) error {
-	now := c.now()
-	amzDate := now.Format("20060102T150405Z")
-	dateStamp := now.Format("20060102")
-	region := strings.TrimSpace(c.Region)
-	scope := dateStamp + "/" + region + "/" + serviceName + "/" + aws4Request
-
-	req.Header.Set("X-Amz-Date", amzDate)
-	if token := strings.TrimSpace(c.SessionToken); token != "" {
-		req.Header.Set("X-Amz-Security-Token", token)
-	}
-
-	signedHeaders := "content-type;host;x-amz-date"
-	canonicalHeaders := "content-type:" + req.Header.Get("Content-Type") + "\n" +
-		"host:" + req.URL.Host + "\n" +
-		"x-amz-date:" + amzDate + "\n"
-	if strings.TrimSpace(c.SessionToken) != "" {
-		signedHeaders = "content-type;host;x-amz-date;x-amz-security-token"
-		canonicalHeaders += "x-amz-security-token:" + strings.TrimSpace(c.SessionToken) + "\n"
-	}
-
-	canonicalRequest := strings.Join([]string{
-		req.Method,
-		canonicalURI(req.URL),
-		"",
-		canonicalHeaders,
-		signedHeaders,
-		sha256Hex(payload),
-	}, "\n")
-	stringToSign := strings.Join([]string{
-		"AWS4-HMAC-SHA256",
-		amzDate,
-		scope,
-		sha256Hex(canonicalRequest),
-	}, "\n")
-	signature := hex.EncodeToString(hmacSHA256(signingKey(strings.TrimSpace(c.SecretAccessKey), dateStamp, region), stringToSign))
-	req.Header.Set("Authorization", "AWS4-HMAC-SHA256 Credential="+strings.TrimSpace(c.AccessKeyID)+"/"+scope+", SignedHeaders="+signedHeaders+", Signature="+signature)
-	return nil
-}
-
-func canonicalURI(u *url.URL) string {
-	if u.EscapedPath() == "" {
-		return "/"
-	}
-	return u.EscapedPath()
-}
-
-func signingKey(secret string, dateStamp string, region string) []byte {
-	dateKey := hmacSHA256([]byte("AWS4"+secret), dateStamp)
-	dateRegionKey := hmacSHA256(dateKey, region)
-	dateRegionServiceKey := hmacSHA256(dateRegionKey, serviceName)
-	return hmacSHA256(dateRegionServiceKey, aws4Request)
-}
-
-func hmacSHA256(key []byte, data string) []byte {
-	mac := hmac.New(sha256.New, key)
-	_, _ = mac.Write([]byte(data))
-	return mac.Sum(nil)
-}
-
-func sha256Hex(value string) string {
-	sum := sha256.Sum256([]byte(value))
-	return hex.EncodeToString(sum[:])
-}
-
 func (c Client) now() time.Time {
 	if c.Now != nil {
 		return c.Now().UTC()
 	}
 	return time.Now().UTC()
+}
+
+func (c Client) credentials(ctx context.Context) (awsutil.Credentials, error) {
+	return awsutil.CredentialProvider{
+		AccessKeyID:     c.AccessKeyID,
+		SecretAccessKey: c.SecretAccessKey,
+		SessionToken:    c.SessionToken,
+		HTTPClient:      c.HTTPClient,
+	}.Resolve(ctx)
 }
 
 func (c Client) client() *http.Client {

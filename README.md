@@ -18,6 +18,7 @@ The service owns OTP challenge creation, SMS delivery, OTP verification, and sho
 
 - [Installation](docs/installation.md)
 - [Configuration](docs/configuration.md)
+- [IaaS installation scripts](docs/iaas-installation.md)
 - [API integration](docs/api-integration.md)
 - [Architecture](docs/architecture.md)
 - [NIST security profile](docs/nist-security-profile.md)

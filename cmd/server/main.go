@@ -28,6 +28,14 @@ func main() {
 	switch storeDriver {
 	case "memory":
 		challengeStore = store.NewMemoryStore()
+	case "dynamodb":
+		challengeStore = store.DynamoDBStore{
+			Region:          os.Getenv("AWS_REGION"),
+			TableName:       os.Getenv("DYNAMODB_TABLE"),
+			AccessKeyID:     os.Getenv("AWS_ACCESS_KEY_ID"),
+			SecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+			SessionToken:    os.Getenv("AWS_SESSION_TOKEN"),
+		}
 	default:
 		if strings.TrimSpace(projectID) == "" {
 			log.Fatal("GCP_PROJECT_ID or GOOGLE_CLOUD_PROJECT is required for firestore store")
@@ -105,8 +113,21 @@ func smsGatewayFromEnv() app.SMSGateway {
 }
 
 func validateRuntimeConfig(storeDriver string, smsProvider string, projectID string) error {
-	if storeDriver != "memory" && strings.TrimSpace(projectID) == "" {
-		return fatalConfig("GCP_PROJECT_ID or GOOGLE_CLOUD_PROJECT is required for firestore store")
+	switch storeDriver {
+	case "memory":
+	case "dynamodb":
+		if strings.TrimSpace(os.Getenv("AWS_REGION")) == "" {
+			return fatalConfig("AWS_REGION is required for dynamodb store")
+		}
+		if strings.TrimSpace(os.Getenv("DYNAMODB_TABLE")) == "" {
+			return fatalConfig("DYNAMODB_TABLE is required for dynamodb store")
+		}
+	case "firestore":
+		if strings.TrimSpace(projectID) == "" {
+			return fatalConfig("GCP_PROJECT_ID or GOOGLE_CLOUD_PROJECT is required for firestore store")
+		}
+	default:
+		return fatalConfig("STORE_DRIVER must be firestore, dynamodb, or memory")
 	}
 	requiredStrongSecrets := []string{
 		"SMS_OTP_SERVICE_API_TOKEN",
@@ -121,7 +142,7 @@ func validateRuntimeConfig(storeDriver string, smsProvider string, projectID str
 	}
 	switch smsProvider {
 	case "amazon_sns", "sns", "amazon-simple-notification-service":
-		for _, key := range []string{"AWS_REGION", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"} {
+		for _, key := range []string{"AWS_REGION"} {
 			if strings.TrimSpace(os.Getenv(key)) == "" {
 				return fatalConfig(key + " is required for amazon_sns")
 			}

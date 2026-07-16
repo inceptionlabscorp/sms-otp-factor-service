@@ -60,7 +60,7 @@ flowchart LR
   Backend["Trusted Backend"]
   Service["sms-otp-factor-service"]
   Provider["SMS Provider\nTwilio or Amazon SNS"]
-  Store["Challenge Store\nFirestore or Memory"]
+  Store["Challenge Store\nFirestore, DynamoDB, or Memory"]
 
   Client -->|"login or protected flow"| Backend
   Backend -->|"internal HTTP + bearer token"| Service
@@ -80,7 +80,7 @@ flowchart TB
   Domain["smsotp Domain"]
   Session["MFA Session Signer"]
   Provider["SMS Gateway Adapter\nTwilio or Amazon SNS"]
-  Store["Challenge Store Adapter\nFirestore or Memory"]
+  Store["Challenge Store Adapter\nFirestore, DynamoDB, or Memory"]
 
   HTTP --> Auth
   Auth --> Application
@@ -98,7 +98,7 @@ flowchart TB
 | Domain model | Defines challenge, phone/code validation, policy, defaults, and domain errors. |
 | Session service | Signs and validates SMS MFA session tokens. |
 | SMS provider adapter | Sends SMS through Twilio Messaging Service or Amazon Simple Notification Service. |
-| Store adapter | Persists challenge payloads. |
+| Store adapter | Persists challenge payloads in Firestore, DynamoDB, or local memory. |
 
 ## 7. C4 Level 3 - Components
 
@@ -112,6 +112,7 @@ flowchart TB
 | Session service | `internal/application/smsotp/session.go` | HMAC-signed `mfa_token`. |
 | HTTP adapter | `internal/adapters/httpapi/handler.go` | Implements `/health` and `/v1/*`. |
 | Firestore adapter | `internal/adapters/store/firestore.go` | Production challenge repository. |
+| DynamoDB adapter | `internal/adapters/store/dynamodb.go` | AWS production challenge repository with SigV4 signing. |
 | Memory adapter | `internal/adapters/store/memory.go` | Test/local repository only. |
 | Twilio adapter | `internal/adapters/sms/twilio/client.go` | Twilio raw SMS transport. |
 | Amazon SNS adapter | `internal/adapters/sms/sns/client.go` | Amazon Simple Notification Service SMS transport with SigV4 signing. |
@@ -167,7 +168,7 @@ sequenceDiagram
 | Runtime item | Value |
 | --- | --- |
 | Container service | `sms-otp-factor-service` |
-| Store | `STORE_DRIVER=firestore` for production; `memory` for local development. |
+| Store | `STORE_DRIVER=firestore` on GCP, `STORE_DRIVER=dynamodb` on AWS, `memory` for local development. |
 | SMS provider | `SMS_PROVIDER=twilio` or `SMS_PROVIDER=amazon_sns`. |
 | Caller | Trusted backend. |
 
@@ -191,6 +192,7 @@ Secrets:
 | ADR-SMS-006 | SMS providers are adapters behind a port. | Provider choice is infrastructure, not domain policy. | Twilio and Amazon SNS can be switched by config. |
 | ADR-SMS-007 | Store phone HMAC fingerprints instead of phone numbers. | Challenge stores are sensitive and should minimize PII. | Verification recomputes the fingerprint from backend-authorized phone input. |
 | ADR-SMS-008 | Require phishing-resistant alternatives for high-risk regulated flows. | SMS is not phishing-resistant and can be affected by carrier and SIM-swap risk. | Banks can use SMS for step-up only where risk acceptance allows it. |
+| ADR-SMS-009 | Use DynamoDB as the AWS production store. | AWS deployments should not depend on GCP Firestore or in-memory state. | App Runner uses role credentials and DynamoDB stores minimized challenge payloads. |
 
 ## 13. Correspondence Rules
 

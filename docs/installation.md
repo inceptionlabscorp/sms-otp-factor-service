@@ -39,7 +39,13 @@ docker run --rm -p 8080:8080 \
 
 ## Google Cloud Run
 
-The included deployment script builds a linux/amd64 binary, builds a container image, pushes it to Google Container Registry, deploys Cloud Run, and runs a health check.
+For a full GCP install that provisions Artifact Registry, Firestore, Secret Manager, IAM and Cloud Run, use:
+
+```bash
+./scripts/install-gcp.sh
+```
+
+The legacy deployment script only builds and deploys Cloud Run against existing infrastructure:
 
 ```bash
 export GCP_PROJECT_ID="example-gcp-project"
@@ -50,6 +56,16 @@ export SERVICE_ACCOUNT="sms-otp-factor-service@example-gcp-project.iam.gservicea
 ```
 
 `GCP_PROJECT_ID` is intentionally required. The script does not contain production project defaults.
+
+## AWS App Runner
+
+For a full AWS install that provisions ECR, DynamoDB, Secrets Manager, IAM and App Runner, use:
+
+```bash
+./scripts/install-aws.sh
+```
+
+AWS production deployments use `STORE_DRIVER=dynamodb`.
 
 ## Production Checklist
 

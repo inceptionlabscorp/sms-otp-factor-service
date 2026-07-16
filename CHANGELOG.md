@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0] - 2026-07-16
+
+- Agrega instaladores IaaS reales para GCP y AWS.
+- Agrega adapter DynamoDB productivo para despliegues AWS.
+- Agrega resolucion de credenciales AWS por role/container metadata para evitar access keys estaticas en App Runner.
+- Agrega scripts `install-gcp.sh` y `install-aws.sh` para provisionar runtime, store, secretos, IAM y container deployment.
+- Documenta instalacion GCP/AWS en `docs/iaas-installation.md`.
+
 ## [0.4.0] - 2026-07-16
 
 - Endurece el servicio con perfil de seguridad NIST para despliegues regulados.

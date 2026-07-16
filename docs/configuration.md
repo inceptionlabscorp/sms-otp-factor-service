@@ -27,8 +27,10 @@ Your verification code is {{CODE}}. It expires in {{MINUTES}} minutes.
 | `GCP_PROJECT_ID` | For Firestore | Google Cloud project used by the Firestore REST adapter. |
 | `GOOGLE_CLOUD_PROJECT` | For Firestore | Alternative project variable used when `GCP_PROJECT_ID` is absent. |
 | `FIRESTORE_COLLECTION` | No | Challenge collection. Default: `sms_otp_challenges`. |
+| `AWS_REGION` | For DynamoDB | AWS region used by the DynamoDB adapter. |
+| `DYNAMODB_TABLE` | For DynamoDB | DynamoDB table name. Default in scripts: `sms-otp-challenges`. |
 
-Use `memory` only for local development and tests.
+Use `memory` only for local development and tests. Use `firestore` on GCP and `dynamodb` on AWS.
 
 ## SMS Provider Selection
 
@@ -62,7 +64,7 @@ Required when `SMS_PROVIDER=amazon_sns`.
 | `AWS_SNS_SMS_TYPE` | No | `Transactional` or `Promotional`. Default: `Transactional`. |
 | `AWS_SNS_SENDER_ID` | No | Sender ID where supported by destination country/carrier. |
 
-The adapter signs requests with AWS SigV4.
+The adapter signs requests with AWS SigV4. On AWS runtimes, it can use role credentials exposed through the container credential endpoint, so static AWS access keys are not required.
 
 ## Recommended Secret Names
 
