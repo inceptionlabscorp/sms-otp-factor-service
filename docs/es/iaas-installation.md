@@ -65,12 +65,14 @@ Script:
 Recursos provisionados:
 
 - Repositorio ECR con scan-on-push.
-- Tabla DynamoDB con billing on-demand, cifrado server-side y TTL sobre `expires_at`.
+- Tabla DynamoDB con billing on-demand, cifrado server-side default y TTL sobre `expires_at`.
 - Secretos en Secrets Manager.
 - Rol de acceso ECR para App Runner.
 - Rol de instancia para App Runner.
 - Politica IAM para DynamoDB, Secrets Manager y SNS publish.
 - Servicio App Runner.
+
+Requisito preflight: AWS App Runner debe estar habilitado/suscrito para la cuenta y region objetivo. El instalador lo verifica antes de crear recursos.
 
 Variables requeridas para Amazon SNS:
 

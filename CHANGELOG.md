@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2] - 2026-07-16
+
+- EN: Adds AWS App Runner availability preflight before provisioning resources.
+- ES: Agrega preflight de disponibilidad de AWS App Runner antes de provisionar recursos.
+- EN: Documents the App Runner account/region subscription requirement.
+- ES: Documenta el requisito de habilitacion/suscripcion de App Runner por cuenta/region.
+
 ## [0.5.1] - 2026-07-16
 
 - EN: Makes README bilingual and adds Spanish mirrors for the public documentation under `docs/es/`.

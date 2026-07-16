@@ -60,6 +60,11 @@ IMAGE="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${TAG
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
+if ! aws apprunner list-services --region "$AWS_REGION" >/dev/null 2>&1; then
+  echo "AWS App Runner is not available for this account/region. Enable or subscribe to App Runner before running this installer." >&2
+  exit 1
+fi
+
 if ! aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" --region "$AWS_REGION" >/dev/null 2>&1; then
   aws ecr create-repository \
     --repository-name "$ECR_REPOSITORY" \
@@ -83,7 +88,6 @@ if ! aws dynamodb describe-table --table-name "$DYNAMODB_TABLE" --region "$AWS_R
     --attribute-definitions AttributeName=challenge_key,AttributeType=S \
     --key-schema AttributeName=challenge_key,KeyType=HASH \
     --billing-mode PAY_PER_REQUEST \
-    --sse-specification Enabled=true \
     --region "$AWS_REGION" >/dev/null
   aws dynamodb wait table-exists --table-name "$DYNAMODB_TABLE" --region "$AWS_REGION"
   aws dynamodb update-time-to-live \
