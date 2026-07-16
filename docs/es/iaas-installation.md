@@ -56,6 +56,41 @@ La API sigue exigiendo `Authorization: Bearer <SMS_OTP_SERVICE_API_TOKEN>` en `/
 
 ## AWS
 
+Script compatible con free tier:
+
+```bash
+./scripts/install-aws-lambda-free-tier.sh
+```
+
+Recursos provisionados:
+
+- Repositorio ECR con scan-on-push.
+- Funcion Lambda usando la imagen de contenedor del repositorio.
+- Lambda Function URL.
+- Tabla DynamoDB con billing on-demand, cifrado server-side default y TTL sobre `expires_at`.
+- Rol IAM de ejecucion con permisos DynamoDB, CloudWatch Logs y SNS publish.
+
+Variables requeridas para Amazon SNS:
+
+```bash
+export AWS_REGION="us-east-1"
+export SMS_PROVIDER="amazon_sns"
+export SMS_OTP_SERVICE_API_TOKEN="32+ character random value"
+export SMS_OTP_SECRET="32+ character random value"
+export SMS_PHONE_HASH_SECRET="32+ character random value"
+export SMS_MFA_SESSION_SECRET="32+ character random value"
+```
+
+Defaults seguros:
+
+- `STORE_DRIVER=dynamodb`
+- Runtime: AWS Lambda container image con Lambda Web Adapter.
+- Function URL auth es `NONE`, pero todas las rutas `/v1/*` siguen exigiendo `Authorization: Bearer <SMS_OTP_SERVICE_API_TOKEN>`.
+- La resource policy de Function URL concede `lambda:InvokeFunctionUrl` y `lambda:InvokeFunction` via URL, como exige AWS para Function URLs nuevas.
+- Los secretos quedan como variables de entorno cifradas de Lambda para evitar dependencias con costo fijo de secret manager en despliegues free-tier.
+
+Script administrado con App Runner:
+
 Script:
 
 ```bash
@@ -110,6 +145,6 @@ Defaults seguros:
 
 - Ejecuta scripts desde una estacion o runner CI con credenciales cloud aprobadas.
 - Revisa permisos IAM generados antes de usarlos en produccion regulada.
-- Prefiere ingress privado o un gateway service-to-service delante de Cloud Run/App Runner.
+- Prefiere ingress privado o un gateway service-to-service delante de Cloud Run/App Runner/Lambda Function URL.
 - Rota service token y secretos HMAC con el proceso de key management de tu organizacion.
 - Mantén SMS OTP como factor step-up restringido; usa MFA phishing-resistant para flujos privilegiados y de alto riesgo.

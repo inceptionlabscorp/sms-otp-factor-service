@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.3] - 2026-07-16
+
+- EN: Adds AWS Lambda free-tier installer using Lambda Web Adapter, Function URL, ECR, DynamoDB and IAM.
+- ES: Agrega instalador AWS Lambda compatible con free tier usando Lambda Web Adapter, Function URL, ECR, DynamoDB e IAM.
+- EN: Documents Lambda as the recommended AWS free-tier runtime.
+- ES: Documenta Lambda como runtime AWS recomendado para free tier.
+- EN: Grants both Lambda Function URL permissions required by AWS for new public Function URLs.
+- ES: Concede ambos permisos requeridos por AWS para Function URLs publicas nuevas.
+
 ## [0.5.2] - 2026-07-16
 
 - EN: Adds AWS App Runner availability preflight before provisioning resources.

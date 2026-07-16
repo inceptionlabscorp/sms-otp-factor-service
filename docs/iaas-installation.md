@@ -56,6 +56,41 @@ The API still requires `Authorization: Bearer <SMS_OTP_SERVICE_API_TOKEN>` on `/
 
 ## AWS
 
+Free-tier friendly script:
+
+```bash
+./scripts/install-aws-lambda-free-tier.sh
+```
+
+Provisioned resources:
+
+- ECR repository with scan-on-push.
+- Lambda function using the repository container image.
+- Lambda Function URL.
+- DynamoDB table with on-demand billing, default server-side encryption, and TTL on `expires_at`.
+- IAM execution role with DynamoDB, CloudWatch Logs, and SNS publish permissions.
+
+Required variables for Amazon SNS:
+
+```bash
+export AWS_REGION="us-east-1"
+export SMS_PROVIDER="amazon_sns"
+export SMS_OTP_SERVICE_API_TOKEN="32+ character random value"
+export SMS_OTP_SECRET="32+ character random value"
+export SMS_PHONE_HASH_SECRET="32+ character random value"
+export SMS_MFA_SESSION_SECRET="32+ character random value"
+```
+
+Secure defaults:
+
+- `STORE_DRIVER=dynamodb`
+- Runtime: AWS Lambda container image with Lambda Web Adapter.
+- Function URL auth is `NONE`, but all `/v1/*` routes still require `Authorization: Bearer <SMS_OTP_SERVICE_API_TOKEN>`.
+- Function URL resource policy grants both `lambda:InvokeFunctionUrl` and `lambda:InvokeFunction` via URL, as required by AWS for new Function URLs.
+- Secrets are stored as Lambda encrypted environment variables to avoid fixed-cost secret-manager dependencies in free-tier deployments.
+
+Managed App Runner script:
+
 Script:
 
 ```bash
@@ -110,6 +145,6 @@ Secure defaults:
 
 - Run scripts from a secured workstation or CI runner with approved cloud credentials.
 - Review generated IAM permissions before using in regulated production.
-- Prefer private ingress or a service-to-service gateway in front of Cloud Run/App Runner.
+- Prefer private ingress or a service-to-service gateway in front of Cloud Run/App Runner/Lambda Function URL.
 - Rotate the service token and HMAC secrets using your organization's key-management process.
 - Keep SMS OTP as a restricted step-up factor; use phishing-resistant MFA for privileged and high-risk workflows.

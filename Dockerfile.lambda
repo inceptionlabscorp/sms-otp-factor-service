@@ -1,0 +1,8 @@
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY .build/lambda-adapter /opt/extensions/lambda-adapter
+COPY .build/server /server
+ENV PORT=8080
+ENV AWS_LWA_READINESS_CHECK_PATH=/health
+USER nonroot:nonroot
+ENTRYPOINT ["/server"]
