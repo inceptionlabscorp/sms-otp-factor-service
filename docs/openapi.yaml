@@ -1,0 +1,232 @@
+openapi: 3.0.3
+info:
+  title: SMS OTP Factor Service
+  version: 0.3.0
+  description: >
+    Private SMS OTP service for second-factor verification. The canonical
+    endpoints are `/v1/sms-otp/*` and `/v1/sms-mfa/*`. The `/v1/bian/*`
+    resources are internal BIAN-aligned aliases using service-domain-style
+    naming and BIAN-style action terms. This is not a certified BIAN API
+    definition.
+  x-bian-standard: BIAN Service Landscape
+  x-bian-alignment-note: Internal service-domain-style contract, not an official BIAN certification.
+servers:
+  - url: https://sms-otp-factor-service.example.com
+security:
+  - serviceToken: []
+paths:
+  /health:
+    get:
+      security: []
+      summary: Service health.
+      responses:
+        "200":
+          description: Health status.
+  /v1/sms-otp/send:
+    post:
+      summary: Send SMS OTP.
+      operationId: sendSMSOTP
+      requestBody:
+        $ref: "#/components/requestBodies/SMSOTPChallenge"
+      responses:
+        "202":
+          $ref: "#/components/responses/Sent"
+  /v1/sms-otp/verify:
+    post:
+      summary: Verify SMS OTP.
+      operationId: verifySMSOTP
+      requestBody:
+        $ref: "#/components/requestBodies/SMSOTPVerification"
+      responses:
+        "200":
+          $ref: "#/components/responses/MFAToken"
+  /v1/sms-mfa/session/validate:
+    post:
+      summary: Validate an SMS MFA token.
+      operationId: validateSMSMFASession
+      requestBody:
+        $ref: "#/components/requestBodies/MFASessionValidation"
+      responses:
+        "200":
+          $ref: "#/components/responses/MFASessionValidation"
+  /v1/admin/sms-otp/send:
+    post:
+      deprecated: true
+      summary: Legacy alias for `/v1/sms-otp/send`.
+      operationId: sendAdminSMSOTP
+      requestBody:
+        $ref: "#/components/requestBodies/SMSOTPChallenge"
+      responses:
+        "202":
+          $ref: "#/components/responses/Sent"
+  /v1/admin/sms-otp/verify:
+    post:
+      deprecated: true
+      summary: Legacy alias for `/v1/sms-otp/verify`.
+      operationId: verifyAdminSMSOTP
+      requestBody:
+        $ref: "#/components/requestBodies/SMSOTPVerification"
+      responses:
+        "200":
+          $ref: "#/components/responses/MFAToken"
+  /v1/admin/sms-mfa/session/validate:
+    post:
+      deprecated: true
+      summary: Legacy alias for `/v1/sms-mfa/session/validate`.
+      operationId: validateAdminSMSMFASession
+      requestBody:
+        $ref: "#/components/requestBodies/MFASessionValidation"
+      responses:
+        "200":
+          $ref: "#/components/responses/MFASessionValidation"
+  /v1/bian/customer-access-entitlement/sms-otp/initiate:
+    post:
+      summary: Initiate an SMS OTP challenge.
+      operationId: initiateCustomerAccessEntitlementSMSOTP
+      x-bian-service-domain: Customer Access Entitlement
+      x-bian-certification: none
+      x-bian-behavior-qualifier: SMS OTP
+      x-bian-action-term: Initiate
+      requestBody:
+        $ref: "#/components/requestBodies/SMSOTPChallenge"
+      responses:
+        "202":
+          $ref: "#/components/responses/Sent"
+  /v1/bian/customer-access-entitlement/sms-otp/execute:
+    post:
+      summary: Execute SMS OTP verification.
+      operationId: executeCustomerAccessEntitlementSMSOTP
+      x-bian-service-domain: Customer Access Entitlement
+      x-bian-certification: none
+      x-bian-behavior-qualifier: SMS OTP
+      x-bian-action-term: Execute
+      requestBody:
+        $ref: "#/components/requestBodies/SMSOTPVerification"
+      responses:
+        "200":
+          $ref: "#/components/responses/MFAToken"
+  /v1/bian/customer-access-entitlement/sms-mfa-session/evaluate:
+    post:
+      summary: Evaluate an SMS MFA session token.
+      operationId: evaluateCustomerAccessEntitlementSMSMFASession
+      x-bian-service-domain: Customer Access Entitlement
+      x-bian-certification: none
+      x-bian-behavior-qualifier: SMS MFA Session
+      x-bian-action-term: Evaluate
+      requestBody:
+        $ref: "#/components/requestBodies/MFASessionValidation"
+      responses:
+        "200":
+          $ref: "#/components/responses/MFASessionValidation"
+components:
+  securitySchemes:
+    serviceToken:
+      type: http
+      scheme: bearer
+      description: Internal service token from a secret manager.
+  requestBodies:
+    SMSOTPChallenge:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SMSOTPChallengeRequest"
+    SMSOTPVerification:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SMSOTPVerificationRequest"
+    MFASessionValidation:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MFASessionValidationRequest"
+  responses:
+    Sent:
+      description: OTP accepted for delivery.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SentResponse"
+    MFAToken:
+      description: MFA token issued.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MFATokenResponse"
+    MFASessionValidation:
+      description: Token validation result.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MFASessionValidationResponse"
+  schemas:
+    SMSOTPChallengeRequest:
+      type: object
+      required:
+        - subject_id
+        - phone_number
+      properties:
+        subject_id:
+          type: string
+          description: Subject identifier supplied by the trusted backend.
+        phone_number:
+          type: string
+          description: Backend-authorized E.164 phone number.
+        purpose:
+          type: string
+          default: sms_mfa
+    SMSOTPVerificationRequest:
+      allOf:
+        - $ref: "#/components/schemas/SMSOTPChallengeRequest"
+        - type: object
+          required:
+            - code
+          properties:
+            code:
+              type: string
+              minLength: 6
+              maxLength: 8
+    MFASessionValidationRequest:
+      type: object
+      required:
+        - subject_id
+        - token
+      properties:
+        subject_id:
+          type: string
+        token:
+          type: string
+    SentResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - sent
+    MFATokenResponse:
+      type: object
+      required:
+        - mfa_token
+        - expires_in
+        - method
+      properties:
+        mfa_token:
+          type: string
+        expires_in:
+          type: integer
+        method:
+          type: string
+          enum:
+            - sms
+    MFASessionValidationResponse:
+      type: object
+      required:
+        - valid
+      properties:
+        valid:
+          type: boolean
