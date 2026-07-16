@@ -1,5 +1,7 @@
 # NIST Security Profile For Regulated SMS OTP Deployments
 
+Español: [Perfil de Seguridad NIST](es/nist-security-profile.md)
+
 This profile maps the service to NIST-aligned controls for regulated environments. It is not a certification, audit report, ATO, FedRAMP authorization, PCI assessment, or legal opinion.
 
 ## NIST References

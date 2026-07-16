@@ -1,5 +1,7 @@
 # IaaS Installation Scripts
 
+Español: [Scripts de Instalacion IaaS](es/iaas-installation.md)
+
 The repository includes provider installation scripts for production-style deployments.
 
 These scripts provision real cloud resources and deploy the container image. They do not store secret values in the repository.

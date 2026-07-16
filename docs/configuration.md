@@ -1,5 +1,7 @@
 # Configuration
 
+Español: [Configuracion](es/configuration.md)
+
 Configuration is environment-variable based. Secrets must be injected by the runtime or a secret manager, never committed to the repository.
 
 ## Core Variables

@@ -1,5 +1,7 @@
 # Architecture Description - SMS OTP Factor Service
 
+Español: [Descripcion de Arquitectura](es/architecture.md)
+
 Normative frame: ISO/IEC/IEEE 42010 architecture description using C4 Model views.
 
 System of interest: `sms-otp-factor-service`.

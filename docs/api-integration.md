@@ -1,5 +1,7 @@
 # API Integration
 
+Español: [Integracion API](es/api-integration.md)
+
 This service is intended for backend-to-backend use. A browser or mobile app should never call it directly.
 
 ## Integration Responsibilities

@@ -7,6 +7,7 @@ Metodologia obligatoria para agentes que trabajen en `sms-otp-factor-service`.
 - No alucines.
 - Siempre que te pidan una implementacion, hazlo real; no dejes mocks ni funcionalidades dummy.
 - Cuando pidan documentar arquitectura o desarrollo, usa ISO/IEC/IEEE 42010 con C4 Model.
+- README y documentacion publica deben mantenerse siempre en ingles y espanol.
 
 ## Alcance
 

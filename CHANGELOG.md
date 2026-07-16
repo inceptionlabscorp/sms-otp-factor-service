@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1] - 2026-07-16
+
+- EN: Makes README bilingual and adds Spanish mirrors for the public documentation under `docs/es/`.
+- ES: Convierte el README en bilingue y agrega espejos en espanol para la documentacion publica bajo `docs/es/`.
+- EN: Adds the project rule that public README and documentation must always remain in English and Spanish.
+- ES: Agrega la regla de proyecto para mantener README y documentacion publica siempre en ingles y espanol.
+
 ## [0.5.0] - 2026-07-16
 
 - Agrega instaladores IaaS reales para GCP y AWS.

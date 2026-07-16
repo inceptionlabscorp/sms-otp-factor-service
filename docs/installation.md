@@ -1,5 +1,7 @@
 # Installation
 
+Español: [Instalacion](es/installation.md)
+
 ## Requirements
 
 - Go 1.22 or newer.
