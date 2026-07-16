@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -11,6 +12,8 @@ import (
 	app "github.com/inceptionlabscorp/sms-otp-factor-service/internal/application/smsotp"
 	domain "github.com/inceptionlabscorp/sms-otp-factor-service/internal/domain/smsotp"
 )
+
+const maxJSONBodyBytes = 4096
 
 type Handler struct {
 	OTP          app.Service
@@ -124,7 +127,14 @@ func (h Handler) authorized(r *http.Request) bool {
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, out any) bool {
 	defer r.Body.Close()
-	if err := json.NewDecoder(r.Body).Decode(out); err != nil {
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(out); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json"})
+		return false
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json"})
 		return false
 	}
@@ -135,6 +145,8 @@ func writeOTPError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, domain.ErrNotConfigured):
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "sms otp provider is not configured"})
+	case errors.Is(err, domain.ErrInvalidInput):
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid request"})
 	case errors.Is(err, domain.ErrRateLimited):
 		writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": "too many sms otp requests"})
 	case errors.Is(err, domain.ErrExpiredCode):
@@ -149,6 +161,10 @@ func writeOTPError(w http.ResponseWriter, err error) {
 func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
 }

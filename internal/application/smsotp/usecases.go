@@ -18,6 +18,7 @@ type Service struct {
 	SMS             SMSGateway
 	Generator       CodeGenerator
 	OTPSecret       string
+	PhoneHashSecret string
 	MessageTemplate string
 	Now             func() time.Time
 	Policy          domain.Policy
@@ -43,12 +44,13 @@ func (s Service) Send(ctx context.Context, input SendInput) error {
 	subjectID := domain.NormalizeSubject(input.SubjectID)
 	phoneNumber := domain.NormalizePhone(input.PhoneNumber)
 	purpose := domain.NormalizePurpose(input.Purpose)
-	if subjectID == "" || phoneNumber == "" {
-		return domain.ErrNotConfigured
+	if subjectID == "" || !domain.ValidPhone(phoneNumber) {
+		return domain.ErrInvalidInput
 	}
 
 	now := s.now()
 	key := domain.ChallengeKey(subjectID, purpose)
+	phoneHash := s.phoneHash(phoneNumber)
 	existing, _ := s.Challenges.GetChallenge(ctx, key)
 	requestCount := 1
 	if existing != nil && now.Sub(existing.SentAt) < s.Policy.Window() {
@@ -68,9 +70,9 @@ func (s Service) Send(ctx context.Context, input SendInput) error {
 	}
 	challenge := domain.Challenge{
 		SubjectID:    subjectID,
-		PhoneNumber:  phoneNumber,
+		PhoneHash:    phoneHash,
 		Purpose:      purpose,
-		Hash:         s.hash(subjectID, phoneNumber, purpose, code, nonce),
+		Hash:         s.hash(subjectID, phoneHash, purpose, code, nonce),
 		Nonce:        nonce,
 		ExpiresAt:    now.Add(s.Policy.OTPTTL()),
 		SentAt:       now,
@@ -90,7 +92,7 @@ func (s Service) Verify(ctx context.Context, input VerifyInput) error {
 	phoneNumber := domain.NormalizePhone(input.PhoneNumber)
 	purpose := domain.NormalizePurpose(input.Purpose)
 	code := strings.TrimSpace(input.Code)
-	if subjectID == "" || phoneNumber == "" || code == "" {
+	if subjectID == "" || !domain.ValidPhone(phoneNumber) || !domain.ValidOTPCode(code, s.Policy.Digits()) {
 		return domain.ErrInvalidCode
 	}
 
@@ -108,10 +110,11 @@ func (s Service) Verify(ctx context.Context, input VerifyInput) error {
 		_ = s.Challenges.DeleteChallenge(ctx, key)
 		return domain.ErrInvalidCode
 	}
-	if challenge.SubjectID != subjectID || challenge.PhoneNumber != phoneNumber || challenge.Purpose != purpose {
+	phoneHash := s.phoneHash(phoneNumber)
+	if challenge.SubjectID != subjectID || challenge.PhoneHash != phoneHash || challenge.Purpose != purpose {
 		return domain.ErrInvalidCode
 	}
-	expected := s.hash(subjectID, phoneNumber, purpose, code, challenge.Nonce)
+	expected := s.hash(subjectID, phoneHash, purpose, code, challenge.Nonce)
 	if subtle.ConstantTimeCompare([]byte(expected), []byte(challenge.Hash)) != 1 {
 		challenge.Attempts++
 		_ = s.Challenges.PutChallenge(ctx, key, *challenge)
@@ -121,17 +124,18 @@ func (s Service) Verify(ctx context.Context, input VerifyInput) error {
 }
 
 func (s Service) ready() error {
-	if s.Challenges == nil || s.SMS == nil || s.Generator == nil || strings.TrimSpace(s.OTPSecret) == "" {
+	if s.Challenges == nil || s.SMS == nil || s.Generator == nil || !strongSecret(s.OTPSecret) || !strongSecret(s.PhoneHashSecret) {
 		return domain.ErrNotConfigured
 	}
 	return nil
 }
 
-func (s Service) hash(subjectID string, phoneNumber string, purpose string, code string, nonce string) string {
+func (s Service) hash(subjectID string, phoneHash string, purpose string, code string, nonce string) string {
 	mac := hmac.New(sha256.New, []byte(s.OTPSecret))
+	_, _ = mac.Write([]byte("otp-challenge|"))
 	_, _ = mac.Write([]byte(subjectID))
 	_, _ = mac.Write([]byte("|"))
-	_, _ = mac.Write([]byte(phoneNumber))
+	_, _ = mac.Write([]byte(phoneHash))
 	_, _ = mac.Write([]byte("|"))
 	_, _ = mac.Write([]byte(purpose))
 	_, _ = mac.Write([]byte("|"))
@@ -139,6 +143,17 @@ func (s Service) hash(subjectID string, phoneNumber string, purpose string, code
 	_, _ = mac.Write([]byte("|"))
 	_, _ = mac.Write([]byte(nonce))
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func (s Service) phoneHash(phoneNumber string) string {
+	mac := hmac.New(sha256.New, []byte(s.PhoneHashSecret))
+	_, _ = mac.Write([]byte("phone-fingerprint|"))
+	_, _ = mac.Write([]byte(domain.NormalizePhone(phoneNumber)))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func strongSecret(value string) bool {
+	return len(strings.TrimSpace(value)) >= 32
 }
 
 func (s Service) now() time.Time {

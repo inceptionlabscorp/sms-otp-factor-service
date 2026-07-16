@@ -55,6 +55,7 @@ export SERVICE_ACCOUNT="sms-otp-factor-service@example-gcp-project.iam.gservicea
 
 - Use `STORE_DRIVER=firestore`.
 - Store secrets in Secret Manager or an equivalent secret manager.
+- Use separate random values for `SMS_OTP_SECRET`, `SMS_PHONE_HASH_SECRET`, and `SMS_MFA_SESSION_SECRET`.
 - Restrict network access to the trusted backend where possible.
 - Rotate `SMS_OTP_SERVICE_API_TOKEN` and HMAC secrets with an operational runbook.
 - Keep provider credentials scoped to SMS sending only.

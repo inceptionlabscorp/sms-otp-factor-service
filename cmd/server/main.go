@@ -18,6 +18,11 @@ func main() {
 	port := env("PORT", "8080")
 	projectID := firstNonEmpty(os.Getenv("GCP_PROJECT_ID"), os.Getenv("GOOGLE_CLOUD_PROJECT"))
 	storeDriver := env("STORE_DRIVER", "firestore")
+	smsProvider := strings.ToLower(env("SMS_PROVIDER", "twilio"))
+
+	if err := validateRuntimeConfig(storeDriver, smsProvider, projectID); err != nil {
+		log.Fatal(err)
+	}
 
 	var challengeStore app.ChallengeRepository
 	switch storeDriver {
@@ -39,6 +44,7 @@ func main() {
 		SMS:             smsGateway,
 		Generator:       app.CryptoCodeGenerator{},
 		OTPSecret:       os.Getenv("SMS_OTP_SECRET"),
+		PhoneHashSecret: os.Getenv("SMS_PHONE_HASH_SECRET"),
 		MessageTemplate: os.Getenv("OTP_MESSAGE_TEMPLATE"),
 	}
 
@@ -97,3 +103,41 @@ func smsGatewayFromEnv() app.SMSGateway {
 		}
 	}
 }
+
+func validateRuntimeConfig(storeDriver string, smsProvider string, projectID string) error {
+	if storeDriver != "memory" && strings.TrimSpace(projectID) == "" {
+		return fatalConfig("GCP_PROJECT_ID or GOOGLE_CLOUD_PROJECT is required for firestore store")
+	}
+	requiredStrongSecrets := []string{
+		"SMS_OTP_SERVICE_API_TOKEN",
+		"SMS_OTP_SECRET",
+		"SMS_PHONE_HASH_SECRET",
+		"SMS_MFA_SESSION_SECRET",
+	}
+	for _, key := range requiredStrongSecrets {
+		if len(strings.TrimSpace(os.Getenv(key))) < 32 {
+			return fatalConfig(key + " must be at least 32 characters")
+		}
+	}
+	switch smsProvider {
+	case "amazon_sns", "sns", "amazon-simple-notification-service":
+		for _, key := range []string{"AWS_REGION", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"} {
+			if strings.TrimSpace(os.Getenv(key)) == "" {
+				return fatalConfig(key + " is required for amazon_sns")
+			}
+		}
+	case "twilio":
+		for _, key := range []string{"TWILIO_ACCOUNT_SID", "TWILIO_API_KEY_SID", "TWILIO_API_KEY_SECRET", "TWILIO_MESSAGING_SERVICE_SID"} {
+			if strings.TrimSpace(os.Getenv(key)) == "" {
+				return fatalConfig(key + " is required for twilio")
+			}
+		}
+	default:
+		return fatalConfig("SMS_PROVIDER must be twilio or amazon_sns")
+	}
+	return nil
+}
+
+type fatalConfig string
+
+func (e fatalConfig) Error() string { return string(e) }

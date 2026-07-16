@@ -26,7 +26,7 @@ type SessionClaims struct {
 func (s SessionService) Sign(subjectID string) (string, int, error) {
 	subjectID = domain.NormalizeSubject(subjectID)
 	secret := strings.TrimSpace(s.Secret)
-	if subjectID == "" || secret == "" {
+	if subjectID == "" || len(secret) < 32 {
 		return "", 0, domain.ErrInvalidSession
 	}
 	ttl := s.Policy.MFASessionTTL()
@@ -48,7 +48,7 @@ func (s SessionService) Validate(token string, subjectID string) bool {
 	token = strings.TrimSpace(token)
 	subjectID = domain.NormalizeSubject(subjectID)
 	secret := strings.TrimSpace(s.Secret)
-	if token == "" || subjectID == "" || secret == "" {
+	if token == "" || subjectID == "" || len(secret) < 32 {
 		return false
 	}
 	parts := strings.Split(token, ".")
@@ -79,6 +79,7 @@ func (s SessionService) now() time.Time {
 
 func sign(payloadPart string, secret string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write([]byte("sms-mfa-session|"))
 	_, _ = mac.Write([]byte(payloadPart))
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }

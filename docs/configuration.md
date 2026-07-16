@@ -9,6 +9,7 @@ Configuration is environment-variable based. Secrets must be injected by the run
 | `PORT` | No | HTTP port. Default: `8080`. |
 | `SMS_OTP_SERVICE_API_TOKEN` | Yes | Bearer token required by all `/v1/*` endpoints. |
 | `SMS_OTP_SECRET` | Yes | HMAC secret used to hash OTP challenges. Use at least 32 random bytes. |
+| `SMS_PHONE_HASH_SECRET` | Yes | Separate HMAC secret used to fingerprint phone numbers in storage. Use at least 32 random bytes. |
 | `SMS_MFA_SESSION_SECRET` | Yes | HMAC secret used to sign MFA session tokens. Use at least 32 random bytes. |
 | `OTP_MESSAGE_TEMPLATE` | No | SMS body template. Supports `{{CODE}}` and `{{MINUTES}}`. |
 
@@ -71,6 +72,7 @@ These names are used by the Cloud Run deploy script when the secrets exist:
 | --- | --- |
 | `SMS_OTP_SERVICE_API_TOKEN` | `sms-otp-service-api-token` |
 | `SMS_OTP_SECRET` | `sms-otp-secret` |
+| `SMS_PHONE_HASH_SECRET` | `sms-phone-hash-secret` |
 | `SMS_MFA_SESSION_SECRET` | `sms-mfa-session-secret` |
 | `TWILIO_ACCOUNT_SID` | `twilio-account-sid` |
 | `TWILIO_API_KEY_SID` | `twilio-api-key-sid` |

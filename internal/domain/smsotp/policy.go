@@ -3,9 +3,12 @@ package smsotp
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"regexp"
 	"strings"
 	"time"
 )
+
+var e164Pattern = regexp.MustCompile(`^\+[1-9][0-9]{7,14}$`)
 
 type Policy struct {
 	TTL             time.Duration
@@ -64,6 +67,23 @@ func NormalizeSubject(value string) string {
 
 func NormalizePhone(value string) string {
 	return strings.TrimSpace(value)
+}
+
+func ValidPhone(value string) bool {
+	return e164Pattern.MatchString(NormalizePhone(value))
+}
+
+func ValidOTPCode(value string, length int) bool {
+	value = strings.TrimSpace(value)
+	if len(value) != length {
+		return false
+	}
+	for _, digit := range value {
+		if digit < '0' || digit > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func NormalizePurpose(value string) string {

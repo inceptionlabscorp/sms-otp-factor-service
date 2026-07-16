@@ -2,6 +2,7 @@ package smsotp
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -9,16 +10,23 @@ import (
 	domain "github.com/inceptionlabscorp/sms-otp-factor-service/internal/domain/smsotp"
 )
 
+const (
+	testOTPSecret       = "0123456789abcdef0123456789abcdef"
+	testPhoneHashSecret = "abcdef0123456789abcdef0123456789"
+	testSessionSecret   = "session-secret-0123456789abcdef01"
+)
+
 func TestServiceSendAndVerify(t *testing.T) {
 	now := time.Date(2026, 7, 16, 1, 2, 3, 0, time.UTC)
 	store := &testStore{}
 	sms := &testSMS{}
 	service := Service{
-		Challenges: store,
-		SMS:        sms,
-		Generator:  fixedGenerator{code: "585021", nonce: "nonce-1"},
-		OTPSecret:  "otp-secret",
-		Now:        func() time.Time { return now },
+		Challenges:      store,
+		SMS:             sms,
+		Generator:       fixedGenerator{code: "585021", nonce: "nonce-1"},
+		OTPSecret:       testOTPSecret,
+		PhoneHashSecret: testPhoneHashSecret,
+		Now:             func() time.Time { return now },
 	}
 
 	err := service.Send(context.Background(), SendInput{SubjectID: "uid-1", PhoneNumber: "+15555550100"})
@@ -38,6 +46,13 @@ func TestServiceSendAndVerify(t *testing.T) {
 	if store.challenges[key].Hash == "585021" {
 		t.Fatal("challenge stored OTP in clear text")
 	}
+	payload, err := json.Marshal(store.challenges[key])
+	if err != nil {
+		t.Fatalf("marshal challenge: %v", err)
+	}
+	if strings.Contains(string(payload), "+15555550100") {
+		t.Fatalf("challenge stored phone number in clear text: %s", string(payload))
+	}
 
 	if err := service.Verify(context.Background(), VerifyInput{SubjectID: "uid-1", PhoneNumber: "+15555550100", Code: "585021"}); err != nil {
 		t.Fatalf("Verify() error = %v", err)
@@ -54,7 +69,8 @@ func TestServiceUsesConfiguredMessageTemplate(t *testing.T) {
 		Challenges:      &testStore{},
 		SMS:             sms,
 		Generator:       fixedGenerator{code: "585021", nonce: "nonce-1"},
-		OTPSecret:       "otp-secret",
+		OTPSecret:       testOTPSecret,
+		PhoneHashSecret: testPhoneHashSecret,
 		MessageTemplate: "Codigo {{CODE}}, vence en {{MINUTES}} minutos.",
 		Now:             func() time.Time { return now },
 	}
@@ -70,12 +86,13 @@ func TestServiceUsesConfiguredMessageTemplate(t *testing.T) {
 func TestServiceRateLimits(t *testing.T) {
 	now := time.Date(2026, 7, 16, 1, 2, 3, 0, time.UTC)
 	service := Service{
-		Challenges: &testStore{},
-		SMS:        &testSMS{},
-		Generator:  fixedGenerator{code: "585021", nonce: "nonce-1"},
-		OTPSecret:  "otp-secret",
-		Now:        func() time.Time { return now },
-		Policy:     domain.Policy{RateLimitMax: 1},
+		Challenges:      &testStore{},
+		SMS:             &testSMS{},
+		Generator:       fixedGenerator{code: "585021", nonce: "nonce-1"},
+		OTPSecret:       testOTPSecret,
+		PhoneHashSecret: testPhoneHashSecret,
+		Now:             func() time.Time { return now },
+		Policy:          domain.Policy{RateLimitMax: 1},
 	}
 	input := SendInput{SubjectID: "uid-1", PhoneNumber: "+15555550100"}
 	if err := service.Send(context.Background(), input); err != nil {
@@ -86,9 +103,38 @@ func TestServiceRateLimits(t *testing.T) {
 	}
 }
 
+func TestServiceRejectsWeakOrMissingPhoneHashSecret(t *testing.T) {
+	service := Service{
+		Challenges: &testStore{},
+		SMS:        &testSMS{},
+		Generator:  fixedGenerator{code: "585021", nonce: "nonce-1"},
+		OTPSecret:  testOTPSecret,
+	}
+	err := service.Send(context.Background(), SendInput{SubjectID: "uid-1", PhoneNumber: "+15555550100"})
+	if err != domain.ErrNotConfigured {
+		t.Fatalf("Send() error = %v, want ErrNotConfigured", err)
+	}
+}
+
+func TestServiceRejectsInvalidPhoneAndCodeShape(t *testing.T) {
+	service := Service{
+		Challenges:      &testStore{},
+		SMS:             &testSMS{},
+		Generator:       fixedGenerator{code: "585021", nonce: "nonce-1"},
+		OTPSecret:       testOTPSecret,
+		PhoneHashSecret: testPhoneHashSecret,
+	}
+	if err := service.Send(context.Background(), SendInput{SubjectID: "uid-1", PhoneNumber: "555-0100"}); err != domain.ErrInvalidInput {
+		t.Fatalf("Send() error = %v, want ErrInvalidInput", err)
+	}
+	if err := service.Verify(context.Background(), VerifyInput{SubjectID: "uid-1", PhoneNumber: "+15555550100", Code: "abc123"}); err != domain.ErrInvalidCode {
+		t.Fatalf("Verify() error = %v, want ErrInvalidCode", err)
+	}
+}
+
 func TestSessionService(t *testing.T) {
 	now := time.Date(2026, 7, 16, 1, 2, 3, 0, time.UTC)
-	service := SessionService{Secret: "session-secret", Now: func() time.Time { return now }}
+	service := SessionService{Secret: testSessionSecret, Now: func() time.Time { return now }}
 	token, expiresIn, err := service.Sign("uid-1")
 	if err != nil {
 		t.Fatalf("Sign() error = %v", err)
@@ -102,7 +148,7 @@ func TestSessionService(t *testing.T) {
 	if service.Validate(token, "other") {
 		t.Fatal("token validated for another subject")
 	}
-	expired := SessionService{Secret: "session-secret", Now: func() time.Time { return now.Add(9 * time.Hour) }}
+	expired := SessionService{Secret: testSessionSecret, Now: func() time.Time { return now.Add(9 * time.Hour) }}
 	if expired.Validate(token, "uid-1") {
 		t.Fatal("expired token validated")
 	}

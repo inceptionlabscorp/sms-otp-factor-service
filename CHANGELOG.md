@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0] - 2026-07-16
+
+- Endurece el servicio con perfil de seguridad NIST para despliegues regulados.
+- Evita persistir telefonos en claro; los challenges guardan `phone_hash` con HMAC y secreto separado.
+- Agrega validacion estricta de telefono E.164, codigo OTP numerico, JSON sin campos desconocidos y limite de cuerpo.
+- Exige secretos fuertes y configuracion de proveedor al iniciar el servicio.
+- Agrega headers de seguridad en respuestas JSON.
+- Documenta controles NIST, riesgos de SMS como factor restringido y baseline bancaria.
+
 ## [0.3.0] - 2026-07-16
 
 - Renombra y prepara el proyecto como `sms-otp-factor-service` para publicacion reusable.

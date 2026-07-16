@@ -12,10 +12,12 @@ Your trusted backend must:
 - Call this service with `subject_id` and the authorized `phone_number`.
 - Store the returned `mfa_token` only in a protected server/client session boundary that matches your security model.
 - Call `/session/validate` before allowing protected actions that require SMS OTP.
+- Offer a phishing-resistant alternative for privileged or high-risk flows in regulated deployments.
 
 This service must:
 
 - Create and store OTP challenges without storing the OTP in clear text.
+- Store phone fingerprints instead of raw phone numbers.
 - Send the OTP through the configured SMS provider.
 - Verify submitted OTP codes.
 - Issue and validate short-lived SMS MFA session tokens.

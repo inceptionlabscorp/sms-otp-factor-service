@@ -20,6 +20,7 @@ The service owns OTP challenge creation, SMS delivery, OTP verification, and sho
 - [Configuration](docs/configuration.md)
 - [API integration](docs/api-integration.md)
 - [Architecture](docs/architecture.md)
+- [NIST security profile](docs/nist-security-profile.md)
 - [OpenAPI contract](docs/openapi.yaml)
 
 ## Quick Start
@@ -28,6 +29,7 @@ The service owns OTP challenge creation, SMS delivery, OTP verification, and sho
 cp .env.example .env
 export SMS_OTP_SERVICE_API_TOKEN="replace-with-a-long-random-token"
 export SMS_OTP_SECRET="replace-with-at-least-32-random-bytes"
+export SMS_PHONE_HASH_SECRET="replace-with-a-separate-random-secret"
 export SMS_MFA_SESSION_SECRET="replace-with-at-least-32-random-bytes"
 export STORE_DRIVER=memory
 export SMS_PROVIDER=twilio
@@ -77,7 +79,9 @@ curl -X POST http://localhost:8080/v1/sms-mfa/session/validate \
 - Keep `SMS_OTP_SERVICE_API_TOKEN`, `SMS_OTP_SECRET`, provider credentials, and session secrets outside the repository.
 - The caller must authorize the subject and phone number before calling `/send`.
 - The service must not be the source of truth for users, roles, or authorized phone numbers.
+- Challenge storage keeps a phone HMAC fingerprint, not the raw phone number.
 - Logs must not include OTP codes, session tokens, full phone numbers, or secrets.
+- SMS OTP is not phishing-resistant; regulated deployments should also provide a phishing-resistant factor for high-risk flows.
 
 ## Development
 

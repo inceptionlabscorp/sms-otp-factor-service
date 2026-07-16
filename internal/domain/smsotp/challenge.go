@@ -9,7 +9,7 @@ const (
 
 type Challenge struct {
 	SubjectID    string    `json:"subject_id"`
-	PhoneNumber  string    `json:"phone_number"`
+	PhoneHash    string    `json:"phone_hash"`
 	Purpose      string    `json:"purpose"`
 	Hash         string    `json:"hash"`
 	Nonce        string    `json:"nonce"`

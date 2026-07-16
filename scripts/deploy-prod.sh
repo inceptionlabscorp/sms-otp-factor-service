@@ -32,6 +32,7 @@ SET_SECRETS=""
 for mapping in \
   "SMS_OTP_SERVICE_API_TOKEN=sms-otp-service-api-token" \
   "SMS_OTP_SECRET=sms-otp-secret" \
+  "SMS_PHONE_HASH_SECRET=sms-phone-hash-secret" \
   "SMS_MFA_SESSION_SECRET=sms-mfa-session-secret" \
   "TWILIO_ACCOUNT_SID=twilio-account-sid" \
   "TWILIO_API_KEY_SID=twilio-api-key-sid" \

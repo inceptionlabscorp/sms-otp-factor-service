@@ -14,6 +14,12 @@ import (
 	domain "github.com/inceptionlabscorp/sms-otp-factor-service/internal/domain/smsotp"
 )
 
+const (
+	httpTestOTPSecret       = "0123456789abcdef0123456789abcdef"
+	httpTestPhoneHashSecret = "abcdef0123456789abcdef0123456789"
+	httpTestSessionSecret   = "session-secret-0123456789abcdef01"
+)
+
 func TestHandlerRejectsMissingToken(t *testing.T) {
 	handler := Handler{ServiceToken: "service-token"}
 	req := httptest.NewRequest(http.MethodPost, "/v1/sms-otp/send", strings.NewReader(`{}`))
@@ -33,13 +39,14 @@ func TestHandlerSendVerifyAndValidate(t *testing.T) {
 	handler := Handler{
 		ServiceToken: "service-token",
 		OTP: app.Service{
-			Challenges: store,
-			SMS:        sms,
-			Generator:  fixedGenerator{code: "599371", nonce: "nonce-1"},
-			OTPSecret:  "otp-secret",
-			Now:        func() time.Time { return now },
+			Challenges:      store,
+			SMS:             sms,
+			Generator:       fixedGenerator{code: "599371", nonce: "nonce-1"},
+			OTPSecret:       httpTestOTPSecret,
+			PhoneHashSecret: httpTestPhoneHashSecret,
+			Now:             func() time.Time { return now },
 		},
-		Session: app.SessionService{Secret: "session-secret", Now: func() time.Time { return now }},
+		Session: app.SessionService{Secret: httpTestSessionSecret, Now: func() time.Time { return now }},
 	}
 
 	sendBody := bytes.NewBufferString(`{"subject_id":"uid-1","phone_number":"+15555550100"}`)
@@ -51,6 +58,9 @@ func TestHandlerSendVerifyAndValidate(t *testing.T) {
 	}
 	if !strings.Contains(sms.body, "599371") {
 		t.Fatalf("sms missing code: %q", sms.body)
+	}
+	if sendRes.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("missing security headers: %#v", sendRes.Header())
 	}
 
 	verifyBody := bytes.NewBufferString(`{"subject_id":"uid-1","phone_number":"+15555550100","code":"599371"}`)
@@ -92,13 +102,14 @@ func TestHandlerSupportsBIANAlignedOTPContract(t *testing.T) {
 	handler := Handler{
 		ServiceToken: "service-token",
 		OTP: app.Service{
-			Challenges: store,
-			SMS:        sms,
-			Generator:  fixedGenerator{code: "599371", nonce: "nonce-1"},
-			OTPSecret:  "otp-secret",
-			Now:        func() time.Time { return now },
+			Challenges:      store,
+			SMS:             sms,
+			Generator:       fixedGenerator{code: "599371", nonce: "nonce-1"},
+			OTPSecret:       httpTestOTPSecret,
+			PhoneHashSecret: httpTestPhoneHashSecret,
+			Now:             func() time.Time { return now },
 		},
-		Session: app.SessionService{Secret: "session-secret", Now: func() time.Time { return now }},
+		Session: app.SessionService{Secret: httpTestSessionSecret, Now: func() time.Time { return now }},
 	}
 
 	sendReq := authedRequest(http.MethodPost, "/v1/bian/customer-access-entitlement/sms-otp/initiate", bytes.NewBufferString(`{"subject_id":"uid-1","phone_number":"+15555550100"}`))
@@ -125,6 +136,18 @@ func TestHandlerSupportsBIANAlignedOTPContract(t *testing.T) {
 	handler.ServeHTTP(validateRes, validateReq)
 	if validateRes.Code != http.StatusOK {
 		t.Fatalf("validate status = %d body=%s", validateRes.Code, validateRes.Body.String())
+	}
+}
+
+func TestHandlerRejectsUnknownJSONFields(t *testing.T) {
+	handler := Handler{ServiceToken: "service-token"}
+	req := authedRequest(http.MethodPost, "/v1/sms-otp/send", bytes.NewBufferString(`{"subject_id":"uid-1","phone_number":"+15555550100","unexpected":true}`))
+	res := httptest.NewRecorder()
+
+	handler.ServeHTTP(res, req)
+
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body=%s, want 400", res.Code, res.Body.String())
 	}
 }
 
