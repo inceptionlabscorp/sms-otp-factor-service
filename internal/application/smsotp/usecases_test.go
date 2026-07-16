@@ -83,6 +83,29 @@ func TestServiceUsesConfiguredMessageTemplate(t *testing.T) {
 	}
 }
 
+func TestServiceUsesDefaultMessageTemplate(t *testing.T) {
+	now := time.Date(2026, 7, 16, 1, 2, 3, 0, time.UTC)
+	sms := &testSMS{}
+	service := Service{
+		Challenges:      &testStore{},
+		SMS:             sms,
+		Generator:       fixedGenerator{code: "585021", nonce: "nonce-1"},
+		OTPSecret:       testOTPSecret,
+		PhoneHashSecret: testPhoneHashSecret,
+		Now:             func() time.Time { return now },
+	}
+
+	if err := service.Send(context.Background(), SendInput{SubjectID: "uid-1", PhoneNumber: "+15555550100"}); err != nil {
+		t.Fatalf("Send() error = %v", err)
+	}
+	if sms.body != "Your verification code is 585021. It expires in 5 minutes." {
+		t.Fatalf("sms body = %q", sms.body)
+	}
+	if strings.Contains(sms.body, "{{") || strings.Contains(sms.body, "}}") {
+		t.Fatalf("sms body contains unreplaced template markers: %q", sms.body)
+	}
+}
+
 func TestServiceRateLimits(t *testing.T) {
 	now := time.Date(2026, 7, 16, 1, 2, 3, 0, time.UTC)
 	service := Service{

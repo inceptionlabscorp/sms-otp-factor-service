@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.4] - 2026-07-16
+
+- EN: Fixes shell default handling for `OTP_MESSAGE_TEMPLATE` so `{{CODE}}` and `{{MINUTES}}` are preserved in deployed environments.
+- ES: Corrige el manejo del default shell de `OTP_MESSAGE_TEMPLATE` para preservar `{{CODE}}` y `{{MINUTES}}` en ambientes desplegados.
+- EN: Adds test coverage for the default OTP message body.
+- ES: Agrega cobertura de prueba para el cuerpo de mensaje OTP por defecto.
+
 ## [0.5.3] - 2026-07-16
 
 - EN: Adds AWS Lambda free-tier installer using Lambda Web Adapter, Function URL, ECR, DynamoDB and IAM.

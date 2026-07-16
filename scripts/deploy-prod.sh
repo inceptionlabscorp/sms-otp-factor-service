@@ -11,6 +11,8 @@ SERVICE="${SERVICE:-sms-otp-factor-service}"
 TAG="${TAG:-$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)}-local"
 IMAGE="${IMAGE:-gcr.io/${PROJECT_ID}/${SERVICE}:${TAG}}"
 SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-}"
+DEFAULT_OTP_MESSAGE_TEMPLATE='Your verification code is {{CODE}}. It expires in {{MINUTES}} minutes.'
+OTP_MESSAGE_TEMPLATE_EFFECTIVE="${OTP_MESSAGE_TEMPLATE:-$DEFAULT_OTP_MESSAGE_TEMPLATE}"
 
 echo "Testing..."
 go test ./...
@@ -26,7 +28,7 @@ echo "Building Docker image: ${IMAGE}"
 docker build --platform linux/amd64 -t "${IMAGE}" .
 docker push "${IMAGE}"
 
-ENV_VARS="GCP_PROJECT_ID=${PROJECT_ID},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},STORE_DRIVER=firestore,FIRESTORE_COLLECTION=${FIRESTORE_COLLECTION:-sms_otp_challenges},SMS_PROVIDER=${SMS_PROVIDER:-twilio},AWS_REGION=${AWS_REGION:-},AWS_SNS_SMS_TYPE=${AWS_SNS_SMS_TYPE:-Transactional},AWS_SNS_SENDER_ID=${AWS_SNS_SENDER_ID:-},OTP_MESSAGE_TEMPLATE=${OTP_MESSAGE_TEMPLATE:-Your verification code is {{CODE}}. It expires in {{MINUTES}} minutes.}"
+ENV_VARS="GCP_PROJECT_ID=${PROJECT_ID},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},STORE_DRIVER=firestore,FIRESTORE_COLLECTION=${FIRESTORE_COLLECTION:-sms_otp_challenges},SMS_PROVIDER=${SMS_PROVIDER:-twilio},AWS_REGION=${AWS_REGION:-},AWS_SNS_SMS_TYPE=${AWS_SNS_SMS_TYPE:-Transactional},AWS_SNS_SENDER_ID=${AWS_SNS_SENDER_ID:-},OTP_MESSAGE_TEMPLATE=${OTP_MESSAGE_TEMPLATE_EFFECTIVE}"
 
 SET_SECRETS=""
 for mapping in \

@@ -33,7 +33,8 @@ DYNAMODB_TABLE="${DYNAMODB_TABLE:-sms-otp-challenges}"
 TAG="${TAG:-$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)}"
 SMS_PROVIDER="${SMS_PROVIDER:-amazon_sns}"
 AWS_SNS_SMS_TYPE="${AWS_SNS_SMS_TYPE:-Transactional}"
-OTP_MESSAGE_TEMPLATE="${OTP_MESSAGE_TEMPLATE:-Your verification code is {{CODE}}. It expires in {{MINUTES}} minutes.}"
+DEFAULT_OTP_MESSAGE_TEMPLATE='Your verification code is {{CODE}}. It expires in {{MINUTES}} minutes.'
+OTP_MESSAGE_TEMPLATE="${OTP_MESSAGE_TEMPLATE:-$DEFAULT_OTP_MESSAGE_TEMPLATE}"
 CPU="${CPU:-0.25 vCPU}"
 MEMORY="${MEMORY:-0.5 GB}"
 
