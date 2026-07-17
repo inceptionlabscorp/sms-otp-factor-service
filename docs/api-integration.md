@@ -120,7 +120,7 @@ These aliases are intentionally described as BIAN-aligned, not BIAN-certified.
 
 ## Error Handling
 
-The service returns JSON errors:
+The service returns provider-agnostic JSON errors:
 
 ```json
 {
@@ -128,17 +128,9 @@ The service returns JSON errors:
 }
 ```
 
-Common errors:
+Supported error codes are `unauthorized`, `not_found`, `invalid_request`, `rate_limited`, `challenge_expired`, `invalid_code`, `service_not_configured`, `operation_failed`, and `timeout`.
 
-| Error | Meaning |
-| --- | --- |
-| `unauthorized` | Missing or invalid service bearer token. |
-| `invalid_request` | Request body is malformed or missing required fields. |
-| `cooldown_active` | A challenge was requested too soon. |
-| `challenge_not_found` | No active challenge exists for the subject and purpose. |
-| `challenge_expired` | The active challenge expired. |
-| `invalid_code` | Code is wrong. |
-| `too_many_attempts` | The challenge exceeded allowed verification attempts. |
+Use the [provider-agnostic error catalog](error-catalog.md) as the source of truth. Do not branch on Twilio, Amazon SNS, carrier, cloud-provider, or SDK-specific errors in API clients.
 
 ## OpenAPI
 

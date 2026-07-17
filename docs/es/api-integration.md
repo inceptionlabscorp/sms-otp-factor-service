@@ -116,7 +116,7 @@ Estos aliases son BIAN-aligned, no BIAN-certified. Las rutas legacy `/v1/admin/*
 
 ## Errores
 
-El servicio devuelve errores JSON:
+El servicio devuelve errores JSON agnosticos a proveedor:
 
 ```json
 {
@@ -124,17 +124,9 @@ El servicio devuelve errores JSON:
 }
 ```
 
-Errores comunes:
+Los codigos soportados son `unauthorized`, `not_found`, `invalid_request`, `rate_limited`, `challenge_expired`, `invalid_code`, `service_not_configured`, `operation_failed` y `timeout`.
 
-| Error | Significado |
-| --- | --- |
-| `unauthorized` | Bearer token faltante o invalido. |
-| `invalid_request` | Request invalido. |
-| `cooldown_active` | Challenge solicitado demasiado pronto. |
-| `challenge_not_found` | No existe challenge activo. |
-| `challenge_expired` | El challenge activo expiro. |
-| `invalid_code` | Codigo incorrecto. |
-| `too_many_attempts` | Se excedieron los intentos permitidos. |
+Usa el [catalogo de errores agnostico a proveedor](error-catalog.md) como fuente de verdad. Los clientes API no deben tomar decisiones con errores especificos de Twilio, Amazon SNS, carrier, proveedor cloud o SDK.
 
 ## OpenAPI
 

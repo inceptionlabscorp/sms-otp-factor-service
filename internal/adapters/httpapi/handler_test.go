@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -30,6 +31,7 @@ func TestHandlerRejectsMissingToken(t *testing.T) {
 	if res.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", res.Code)
 	}
+	assertErrorCode(t, res, ErrorUnauthorized)
 }
 
 func TestHandlerSendVerifyAndValidate(t *testing.T) {
@@ -149,6 +151,178 @@ func TestHandlerRejectsUnknownJSONFields(t *testing.T) {
 	if res.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d body=%s, want 400", res.Code, res.Body.String())
 	}
+	assertErrorCode(t, res, ErrorInvalidRequest)
+}
+
+func TestHandlerUsesProviderAgnosticErrorCatalog(t *testing.T) {
+	now := time.Date(2026, 7, 16, 1, 2, 3, 0, time.UTC)
+	tests := []struct {
+		name       string
+		handler    Handler
+		method     string
+		path       string
+		body       string
+		wantStatus int
+		wantError  string
+	}{
+		{
+			name: "not found",
+			handler: Handler{
+				ServiceToken: "service-token",
+			},
+			method:     http.MethodPost,
+			path:       "/v1/missing",
+			body:       `{}`,
+			wantStatus: http.StatusNotFound,
+			wantError:  ErrorNotFound,
+		},
+		{
+			name: "service not configured",
+			handler: Handler{
+				ServiceToken: "service-token",
+			},
+			method:     http.MethodPost,
+			path:       "/v1/sms-otp/send",
+			body:       `{"subject_id":"uid-1","phone_number":"+15555550100"}`,
+			wantStatus: http.StatusServiceUnavailable,
+			wantError:  ErrorServiceNotConfigured,
+		},
+		{
+			name: "invalid request",
+			handler: Handler{
+				ServiceToken: "service-token",
+				OTP: app.Service{
+					Challenges:      &httpTestStore{challenges: map[string]domain.Challenge{}},
+					SMS:             &httpTestSMS{},
+					Generator:       fixedGenerator{code: "599371", nonce: "nonce-1"},
+					OTPSecret:       httpTestOTPSecret,
+					PhoneHashSecret: httpTestPhoneHashSecret,
+					Now:             func() time.Time { return now },
+				},
+			},
+			method:     http.MethodPost,
+			path:       "/v1/sms-otp/send",
+			body:       `{"subject_id":"uid-1","phone_number":"555-0100"}`,
+			wantStatus: http.StatusBadRequest,
+			wantError:  ErrorInvalidRequest,
+		},
+		{
+			name: "rate limited",
+			handler: Handler{
+				ServiceToken: "service-token",
+				OTP: app.Service{
+					Challenges: &httpTestStore{challenges: map[string]domain.Challenge{
+						domain.ChallengeKey("uid-1", domain.DefaultPurpose): {
+							SubjectID:    "uid-1",
+							Purpose:      domain.DefaultPurpose,
+							SentAt:       now,
+							RequestCount: domain.Policy{}.MaxRequests(),
+						},
+					}},
+					SMS:             &httpTestSMS{},
+					Generator:       fixedGenerator{code: "599371", nonce: "nonce-1"},
+					OTPSecret:       httpTestOTPSecret,
+					PhoneHashSecret: httpTestPhoneHashSecret,
+					Now:             func() time.Time { return now },
+					Policy:          domain.Policy{},
+				},
+			},
+			method:     http.MethodPost,
+			path:       "/v1/sms-otp/send",
+			body:       `{"subject_id":"uid-1","phone_number":"+15555550100"}`,
+			wantStatus: http.StatusTooManyRequests,
+			wantError:  ErrorRateLimited,
+		},
+		{
+			name: "operation failed",
+			handler: Handler{
+				ServiceToken: "service-token",
+				OTP: app.Service{
+					Challenges:      &httpTestStore{challenges: map[string]domain.Challenge{}},
+					SMS:             &httpTestSMS{err: errors.New("provider down")},
+					Generator:       fixedGenerator{code: "599371", nonce: "nonce-1"},
+					OTPSecret:       httpTestOTPSecret,
+					PhoneHashSecret: httpTestPhoneHashSecret,
+					Now:             func() time.Time { return now },
+				},
+			},
+			method:     http.MethodPost,
+			path:       "/v1/sms-otp/send",
+			body:       `{"subject_id":"uid-1","phone_number":"+15555550100"}`,
+			wantStatus: http.StatusInternalServerError,
+			wantError:  ErrorOperationFailed,
+		},
+		{
+			name: "invalid code",
+			handler: Handler{
+				ServiceToken: "service-token",
+				OTP: app.Service{
+					Challenges:      &httpTestStore{challenges: map[string]domain.Challenge{}},
+					SMS:             &httpTestSMS{},
+					Generator:       fixedGenerator{code: "599371", nonce: "nonce-1"},
+					OTPSecret:       httpTestOTPSecret,
+					PhoneHashSecret: httpTestPhoneHashSecret,
+					Now:             func() time.Time { return now },
+				},
+			},
+			method:     http.MethodPost,
+			path:       "/v1/sms-otp/verify",
+			body:       `{"subject_id":"uid-1","phone_number":"+15555550100","code":"000000"}`,
+			wantStatus: http.StatusBadRequest,
+			wantError:  ErrorInvalidCode,
+		},
+		{
+			name: "challenge expired",
+			handler: Handler{
+				ServiceToken: "service-token",
+				OTP: app.Service{
+					Challenges: &httpTestStore{challenges: map[string]domain.Challenge{
+						domain.ChallengeKey("uid-1", domain.DefaultPurpose): {
+							SubjectID: "uid-1",
+							Purpose:   domain.DefaultPurpose,
+							Hash:      "hash",
+							ExpiresAt: now.Add(-time.Minute),
+						},
+					}},
+					SMS:             &httpTestSMS{},
+					Generator:       fixedGenerator{code: "599371", nonce: "nonce-1"},
+					OTPSecret:       httpTestOTPSecret,
+					PhoneHashSecret: httpTestPhoneHashSecret,
+					Now:             func() time.Time { return now },
+				},
+			},
+			method:     http.MethodPost,
+			path:       "/v1/sms-otp/verify",
+			body:       `{"subject_id":"uid-1","phone_number":"+15555550100","code":"000000"}`,
+			wantStatus: http.StatusBadRequest,
+			wantError:  ErrorChallengeExpired,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := authedRequest(tt.method, tt.path, bytes.NewBufferString(tt.body))
+			res := httptest.NewRecorder()
+
+			tt.handler.ServeHTTP(res, req)
+
+			if res.Code != tt.wantStatus {
+				t.Fatalf("status = %d body=%s, want %d", res.Code, res.Body.String(), tt.wantStatus)
+			}
+			assertErrorCode(t, res, tt.wantError)
+		})
+	}
+}
+
+func assertErrorCode(t *testing.T, res *httptest.ResponseRecorder, want string) {
+	t.Helper()
+	var payload map[string]string
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode error payload: %v body=%s", err, res.Body.String())
+	}
+	if payload["error"] != want {
+		t.Fatalf("error = %q, want %q", payload["error"], want)
+	}
 }
 
 func authedRequest(method string, path string, body *bytes.Buffer) *http.Request {
@@ -182,11 +356,12 @@ func (s *httpTestStore) DeleteChallenge(_ context.Context, key string) error {
 
 type httpTestSMS struct {
 	body string
+	err  error
 }
 
 func (s *httpTestSMS) SendSMS(_ context.Context, _ string, body string) error {
 	s.body = body
-	return nil
+	return s.err
 }
 
 type fixedGenerator struct {

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.6] - 2026-07-17
+
+- EN: Adds a provider-agnostic API error catalog and standardizes HTTP error responses.
+- ES: Agrega un catalogo de errores API agnostico a proveedor y estandariza respuestas HTTP de error.
+- EN: Documents stable error codes in English, Spanish and OpenAPI.
+- ES: Documenta codigos de error estables en ingles, espanol y OpenAPI.
+
 ## [0.5.5] - 2026-07-17
 
 - EN: Removes internal agent instructions from the public repository and ignores local agent metadata.

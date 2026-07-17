@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: SMS OTP Factor Service
-  version: 0.3.0
+  version: 0.5.6
   description: >
     Private SMS OTP service for second-factor verification. The canonical
     endpoints are `/v1/sms-otp/*` and `/v1/sms-mfa/*`. The `/v1/bian/*`
@@ -31,6 +31,16 @@ paths:
       responses:
         "202":
           $ref: "#/components/responses/Sent"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/OperationFailed"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /v1/sms-otp/verify:
     post:
       summary: Verify SMS OTP.
@@ -40,6 +50,18 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/MFAToken"
+        "400":
+          description: Invalid request, expired challenge, or invalid OTP code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/OperationFailed"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /v1/sms-mfa/session/validate:
     post:
       summary: Validate an SMS MFA token.
@@ -49,6 +71,10 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/MFASessionValidation"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /v1/admin/sms-otp/send:
     post:
       deprecated: true
@@ -59,6 +85,16 @@ paths:
       responses:
         "202":
           $ref: "#/components/responses/Sent"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/OperationFailed"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /v1/admin/sms-otp/verify:
     post:
       deprecated: true
@@ -69,6 +105,18 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/MFAToken"
+        "400":
+          description: Invalid request, expired challenge, or invalid OTP code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/OperationFailed"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /v1/admin/sms-mfa/session/validate:
     post:
       deprecated: true
@@ -79,6 +127,10 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/MFASessionValidation"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /v1/bian/customer-access-entitlement/sms-otp/initiate:
     post:
       summary: Initiate an SMS OTP challenge.
@@ -92,6 +144,16 @@ paths:
       responses:
         "202":
           $ref: "#/components/responses/Sent"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/OperationFailed"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /v1/bian/customer-access-entitlement/sms-otp/execute:
     post:
       summary: Execute SMS OTP verification.
@@ -105,6 +167,18 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/MFAToken"
+        "400":
+          description: Invalid request, expired challenge, or invalid OTP code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/OperationFailed"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /v1/bian/customer-access-entitlement/sms-mfa-session/evaluate:
     post:
       summary: Evaluate an SMS MFA session token.
@@ -118,6 +192,10 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/MFASessionValidation"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     serviceToken:
@@ -162,6 +240,36 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/MFASessionValidationResponse"
+    Unauthorized:
+      description: Missing or invalid service bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InvalidRequest:
+      description: Malformed or semantically invalid request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    RateLimited:
+      description: OTP challenge rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    OperationFailed:
+      description: Provider-agnostic operational failure.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ServiceUnavailable:
+      description: Service is not configured or timed out.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
   schemas:
     SMSOTPChallengeRequest:
       type: object
@@ -232,3 +340,21 @@ components:
       properties:
         valid:
           type: boolean
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Stable provider-agnostic error code.
+          enum:
+            - unauthorized
+            - not_found
+            - invalid_request
+            - rate_limited
+            - challenge_expired
+            - invalid_code
+            - service_not_configured
+            - operation_failed
+            - timeout

@@ -27,7 +27,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.authorized(r) {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "unauthorized"})
+		writeError(w, http.StatusUnauthorized, ErrorUnauthorized)
 		return
 	}
 	switch {
@@ -38,7 +38,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodPost && (r.URL.Path == "/v1/sms-mfa/session/validate" || r.URL.Path == "/v1/admin/sms-mfa/session/validate" || r.URL.Path == "/v1/bian/customer-access-entitlement/sms-mfa-session/evaluate"):
 		h.validateSession(w, r)
 	default:
-		writeJSON(w, http.StatusNotFound, map[string]any{"error": "not_found"})
+		writeError(w, http.StatusNotFound, ErrorNotFound)
 	}
 }
 
@@ -94,7 +94,7 @@ func (h Handler) verify(w http.ResponseWriter, r *http.Request) {
 	}
 	token, expiresIn, err := h.Session.Sign(input.SubjectID)
 	if err != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "sms mfa session signing is not configured"})
+		writeError(w, http.StatusServiceUnavailable, ErrorServiceNotConfigured)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -131,11 +131,11 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, out any) bool {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(out); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json"})
+		writeError(w, http.StatusBadRequest, ErrorInvalidRequest)
 		return false
 	}
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json"})
+		writeError(w, http.StatusBadRequest, ErrorInvalidRequest)
 		return false
 	}
 	return true
@@ -144,18 +144,22 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, out any) bool {
 func writeOTPError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, domain.ErrNotConfigured):
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "sms otp provider is not configured"})
+		writeError(w, http.StatusServiceUnavailable, ErrorServiceNotConfigured)
 	case errors.Is(err, domain.ErrInvalidInput):
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid request"})
+		writeError(w, http.StatusBadRequest, ErrorInvalidRequest)
 	case errors.Is(err, domain.ErrRateLimited):
-		writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": "too many sms otp requests"})
+		writeError(w, http.StatusTooManyRequests, ErrorRateLimited)
 	case errors.Is(err, domain.ErrExpiredCode):
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "sms otp code expired"})
+		writeError(w, http.StatusBadRequest, ErrorChallengeExpired)
 	case errors.Is(err, domain.ErrInvalidCode):
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid sms otp code"})
+		writeError(w, http.StatusBadRequest, ErrorInvalidCode)
 	default:
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "sms otp operation failed"})
+		writeError(w, http.StatusInternalServerError, ErrorOperationFailed)
 	}
+}
+
+func writeError(w http.ResponseWriter, status int, code string) {
+	writeJSON(w, status, map[string]any{"error": code})
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
@@ -170,5 +174,5 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 }
 
 func TimeoutMiddleware(next http.Handler, timeout time.Duration) http.Handler {
-	return http.TimeoutHandler(next, timeout, `{"error":"timeout"}`)
+	return http.TimeoutHandler(next, timeout, `{"error":"`+ErrorTimeout+`"}`)
 }
