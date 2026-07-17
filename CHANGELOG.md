@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.5] - 2026-07-17
+
+- EN: Removes internal agent instructions from the public repository and ignores local agent metadata.
+- ES: Elimina instrucciones internas de agentes del repositorio publico e ignora metadata local de agentes.
+
 ## [0.5.4] - 2026-07-16
 
 - EN: Fixes shell default handling for `OTP_MESSAGE_TEMPLATE` so `{{CODE}}` and `{{MINUTES}}` are preserved in deployed environments.
